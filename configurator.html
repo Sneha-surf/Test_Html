@@ -390,11 +390,16 @@
         <line x1="12" y1="18" x2="12" y2="12"/>
         <line x1="9" y1="15" x2="15" y2="15"/>
       </svg>
-      <h2>Drop your deck here</h2>
-      <p>Click to browse, or drag &amp; drop a Claude-generated <code>.html</code> file</p>
+      <p style="color:var(--text-dim);font-size:13px">Drag &amp; drop a Claude-generated <code>.html</code> file here</p>
       <div id="upload-status"></div>
-      <input type="file" id="file-input"
-        style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;">
+    </div>
+
+    <button class="primary-btn" id="choose-btn">Choose file…</button>
+
+    <!-- Visible fallback if API unavailable -->
+    <div id="legacy-wrap" style="display:none;flex-direction:column;align-items:center;gap:6px">
+      <span style="font-size:12px;color:var(--text-dim)">or select directly:</span>
+      <input type="file" id="file-input" style="color:var(--text);font-size:13px;cursor:pointer;">
     </div>
   </div>
 
@@ -531,7 +536,9 @@
     const uploadView     = $('upload-view');
     const editorView     = $('editor-view');
     const dropArea       = $('drop-area');
+    const chooseBtn      = $('choose-btn');
     const fileInput      = $('file-input');
+    const legacyWrap     = $('legacy-wrap');
     const backBtn        = $('back-btn');
     const resetBtn       = $('reset-btn');
     const previewIframe  = $('preview-iframe');
@@ -551,7 +558,7 @@
     const fileInfo       = $('file-info');
 
     // ── Upload handlers ────────────────────────────────────────────────────
-    const uploadStatus = document.getElementById('upload-status');
+    const uploadStatus = $('upload-status');
 
     function setStatus(msg, type) {
       uploadStatus.textContent = msg;
@@ -573,11 +580,35 @@
       reader.readAsText(file);
     }
 
-    fileInput.addEventListener('dragover',  e => { e.preventDefault(); dropArea.classList.add('dragover'); });
-    fileInput.addEventListener('dragleave', ()  => dropArea.classList.remove('dragover'));
-    fileInput.addEventListener('drop',      ()  => dropArea.classList.remove('dragover'));
+    // Primary: File System Access API — called directly from button, no restrictions
+    chooseBtn.addEventListener('click', async () => {
+      if ('showOpenFilePicker' in window) {
+        try {
+          const [handle] = await window.showOpenFilePicker({ multiple: false });
+          loadFile(await handle.getFile());
+        } catch (e) {
+          if (e.name !== 'AbortError') setStatus('Could not open file: ' + e.message, 'error');
+        }
+      } else {
+        // Fallback: show the native file input for older browsers
+        legacyWrap.style.display = 'flex';
+        setStatus('Use the input below to choose your file', 'loading');
+      }
+    });
+
+    // Fallback: traditional file input (visible, for browsers without showOpenFilePicker)
     fileInput.addEventListener('change', () => {
-      if (fileInput.files && fileInput.files[0]) loadFile(fileInput.files[0]);
+      if (fileInput.files?.[0]) loadFile(fileInput.files[0]);
+    });
+
+    // Drag and drop onto the drop zone
+    dropArea.addEventListener('dragover',  e => { e.preventDefault(); dropArea.classList.add('dragover'); });
+    dropArea.addEventListener('dragleave', ()  => dropArea.classList.remove('dragover'));
+    dropArea.addEventListener('drop', e => {
+      e.preventDefault();
+      dropArea.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file) loadFile(file);
     });
 
     backBtn.addEventListener('click', showUpload);
@@ -593,6 +624,7 @@
       rawHtml = '';
       fileName = '';
       fileInput.value = '';
+      legacyWrap.style.display = 'none';
       setStatus('');
       resetState();
     }
