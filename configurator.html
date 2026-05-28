@@ -71,15 +71,14 @@
     .drop-card h2 { font-size: 18px; font-weight: 600; }
     .drop-card p { font-size: 13px; color: var(--text-dim); }
     .drop-card p label { color: var(--accent-light); cursor: pointer; text-decoration: underline; }
-    .file-badge {
-      font-size: 12px;
-      color: var(--success);
-      background: rgba(34,197,94,0.1);
-      padding: 4px 12px;
+    #upload-status {
+      font-size: 13px;
+      padding: 6px 14px;
       border-radius: 99px;
-      margin-top: 4px;
+      margin-top: 6px;
     }
-    #file-input { display: none; }
+    #upload-status.loading { color: var(--accent-light); background: rgba(99,102,241,0.12); }
+    #upload-status.error   { color: #fca5a5; background: rgba(239,68,68,0.12); }
 
     .primary-btn {
       background: var(--accent);
@@ -391,12 +390,10 @@
         <line x1="9" y1="15" x2="15" y2="15"/>
       </svg>
       <h2>Drop your deck here</h2>
-      <p>Drag &amp; drop a Claude-generated <code>.html</code> file, or <span style="color:var(--accent-light);text-decoration:underline;">browse</span></p>
-      <div class="file-badge" id="file-badge" style="display:none"></div>
-      <input type="file" id="file-input" accept=".html,.htm" style="display:none">
+      <p>Click to browse, or drag &amp; drop a Claude-generated <code>.html</code> file</p>
+      <div id="upload-status"></div>
+      <input type="file" id="file-input" style="display:none">
     </label>
-
-    <button class="primary-btn" id="open-btn" disabled>Open in Configurator</button>
   </div>
 
   <!-- ── Editor View ── -->
@@ -504,7 +501,6 @@
     // ── State ──────────────────────────────────────────────────────────────
     let rawHtml   = '';
     let fileName  = '';
-    let pendingFile = null;
     let prevBlobUrl = null;
     let debounceTimer = null;
 
@@ -534,8 +530,6 @@
     const editorView     = $('editor-view');
     const dropArea       = $('drop-area');
     const fileInput      = $('file-input');
-    const fileBadge      = $('file-badge');
-    const openBtn        = $('open-btn');
     const backBtn        = $('back-btn');
     const resetBtn       = $('reset-btn');
     const previewIframe  = $('preview-iframe');
@@ -555,12 +549,26 @@
     const fileInfo       = $('file-info');
 
     // ── Upload handlers ────────────────────────────────────────────────────
-    function stageFile(file) {
-      if (!file || !/\.html?$/i.test(file.name)) return;
-      pendingFile = file;
-      fileBadge.textContent = file.name;
-      fileBadge.style.display = '';
-      openBtn.disabled = false;
+    const uploadStatus = document.getElementById('upload-status');
+
+    function setStatus(msg, type) {
+      uploadStatus.textContent = msg;
+      uploadStatus.className = type || '';
+    }
+
+    function loadFile(file) {
+      if (!file) return;
+      setStatus('Reading file…', 'loading');
+      const reader = new FileReader();
+      reader.onload = e => {
+        rawHtml  = e.target.result;
+        fileName = file.name;
+        fileInfo.textContent = fileName;
+        showEditor();
+        refreshPreview();
+      };
+      reader.onerror = () => setStatus('Could not read the file. Try again.', 'error');
+      reader.readAsText(file);
     }
 
     dropArea.addEventListener('dragover',  e => { e.preventDefault(); dropArea.classList.add('dragover'); });
@@ -568,21 +576,10 @@
     dropArea.addEventListener('drop', e => {
       e.preventDefault();
       dropArea.classList.remove('dragover');
-      stageFile(e.dataTransfer.files[0]);
+      loadFile(e.dataTransfer.files[0]);
     });
-    fileInput.addEventListener('change', () => stageFile(fileInput.files[0]));
-
-    openBtn.addEventListener('click', () => {
-      if (!pendingFile) return;
-      const reader = new FileReader();
-      reader.onload = e => {
-        rawHtml  = e.target.result;
-        fileName = pendingFile.name;
-        fileInfo.textContent = fileName;
-        showEditor();
-        refreshPreview();
-      };
-      reader.readAsText(pendingFile);
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files && fileInput.files[0]) loadFile(fileInput.files[0]);
     });
 
     backBtn.addEventListener('click', showUpload);
@@ -597,10 +594,8 @@
       uploadView.style.display = 'flex';
       rawHtml = '';
       fileName = '';
-      pendingFile = null;
       fileInput.value = '';
-      fileBadge.style.display = 'none';
-      openBtn.disabled = true;
+      setStatus('');
       resetState();
     }
 
