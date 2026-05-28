@@ -383,7 +383,7 @@
   <div id="upload-view">
     <div class="tool-wordmark">Deck Configurator</div>
 
-    <div class="drop-card" id="drop-area">
+    <label class="drop-card" id="drop-area" for="file-input">
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
         <polyline points="14 2 14 8 20 8"/>
@@ -391,10 +391,10 @@
         <line x1="9" y1="15" x2="15" y2="15"/>
       </svg>
       <h2>Drop your deck here</h2>
-      <p>Drag &amp; drop a Claude-generated <code>.html</code> file, or <span style="color:var(--accent-light);text-decoration:underline;cursor:pointer">browse</span></p>
+      <p>Drag &amp; drop a Claude-generated <code>.html</code> file, or <span style="color:var(--accent-light);text-decoration:underline;">browse</span></p>
       <div class="file-badge" id="file-badge" style="display:none"></div>
-      <input type="file" id="file-input" accept=".html,.htm">
-    </div>
+      <input type="file" id="file-input" accept=".html,.htm" style="display:none">
+    </label>
 
     <button class="primary-btn" id="open-btn" disabled>Open in Configurator</button>
   </div>
@@ -570,7 +570,6 @@
       dropArea.classList.remove('dragover');
       stageFile(e.dataTransfer.files[0]);
     });
-    dropArea.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => stageFile(fileInput.files[0]));
 
     openBtn.addEventListener('click', () => {
